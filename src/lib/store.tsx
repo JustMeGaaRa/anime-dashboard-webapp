@@ -11,6 +11,7 @@ interface StoreContextValue {
   setListFor: (id: string, key: string, title?: string, silent?: boolean) => void;
   removeFrom: (id: string, title?: string) => void;
   updateWatchedEps: (id: string, eps: number) => void;
+  showToast: (msg: string) => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -95,8 +96,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ lists, watchedEps, toast, setListFor, removeFrom, updateWatchedEps }),
-    [lists, watchedEps, toast, setListFor, removeFrom, updateWatchedEps],
+    () => ({ lists, watchedEps, toast, setListFor, removeFrom, updateWatchedEps, showToast }),
+    [lists, watchedEps, toast, setListFor, removeFrom, updateWatchedEps, showToast],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -78,6 +78,13 @@ function DropdownTrigger({ children, className, onClick, style, asChild }: Dropd
     <div
       className={className}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          // Re-dispatch as a click so the same handler runs for keyboard users
+          e.currentTarget.click();
+        }
+      }}
       role="button"
       tabIndex={0}
       style={style}

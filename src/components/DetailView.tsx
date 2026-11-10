@@ -14,7 +14,7 @@ import { SeasonsList } from './anime/SeasonsList';
 
 export default function DetailView({ initialAnime }: { initialAnime: Anime | null }) {
   const router = useRouter();
-  const { lists, watchedEps, setListFor, removeFrom, updateWatchedEps } = useStore();
+  const { lists, watchedEps, setListFor, removeFrom, updateWatchedEps, showToast } = useStore();
   const anime = initialAnime;
 
   const [isSynced, setIsSynced] = useState(false);
@@ -62,11 +62,14 @@ export default function DetailView({ initialAnime }: { initialAnime: Anime | nul
   };
 
   const handleRemove = async () => {
+    const previousKey = lists[anime.id] ?? anime.listKey;
     removeFrom(anime.id, anime.title);
     try {
       await deleteAnimeFromList(Number(anime.id));
     } catch (err) {
       console.error('[DetailView] Failed to remove from MAL:', err);
+      if (previousKey) setListFor(anime.id, previousKey, anime.title, true);
+      showToast(`Couldn't remove "${anime.title}". Please try again.`);
     }
   };
 
@@ -127,11 +130,14 @@ export default function DetailView({ initialAnime }: { initialAnime: Anime | nul
                     }
                   }}
                   onRemove={async () => {
+                    const previousKey = lists[a.id];
                     removeFrom(a.id, a.title);
                     try {
                       await deleteAnimeFromList(Number(a.id));
                     } catch (err) {
                       console.error('[DetailView] Failed to remove related anime:', err);
+                      if (previousKey) setListFor(a.id, previousKey, a.title, true);
+                      showToast(`Couldn't remove "${a.title}". Please try again.`);
                     }
                   }}
                 />
