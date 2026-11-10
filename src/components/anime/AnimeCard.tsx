@@ -34,6 +34,9 @@ export default function AnimeCard({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only handle keys pressed on the card itself, so Enter/Space on the menu
+    // trigger or its items still reach those controls instead of navigating.
+    if (e.target !== e.currentTarget) return;
     if (clickable && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       router.push('/anime/' + anime.id);

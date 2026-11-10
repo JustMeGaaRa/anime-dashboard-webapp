@@ -17,7 +17,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ malData }: DashboardProps) {
-  const { lists, watchedEps, setListFor, removeFrom } = useStore();
+  const { lists, watchedEps, setListFor, removeFrom, showToast } = useStore();
   const [activeFilter, setActiveFilter] = useState('watching');
   const [sortBy, setSortBy] = useState<'name' | 'release_date' | 'date_added'>('date_added');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -47,18 +47,24 @@ export default function Dashboard({ malData }: DashboardProps) {
   };
 
   const handleRemove = async (id: string) => {
+    const item = malList?.find((it) => it.anime.id === id);
+    const title = item?.anime.title || ANIME_BY_ID[id]?.title;
+    const previousKey = item?.listKey ?? lists[id];
+
     // Optimistic UI
     if (malList) {
-      setMalList((prev) => prev?.filter((item) => item.anime.id !== id) ?? null);
+      setMalList((prev) => prev?.filter((it) => it.anime.id !== id) ?? null);
     }
-    const item = malList?.find(it => it.anime.id === id);
-    removeFrom(id, item?.anime.title || ANIME_BY_ID[id]?.title);
+    removeFrom(id, title);
 
     try {
       await deleteAnimeFromList(Number(id));
     } catch (err) {
       console.error('[Dashboard] Failed to remove from MAL:', err);
-      // Revert store on failure
+      // Roll back so the UI matches MAL, then tell the user
+      if (item) setMalList((prev) => (prev ? [...prev, item] : prev));
+      if (previousKey) setListFor(id, previousKey, title, true);
+      showToast(`Couldn't remove "${title ?? 'Anime'}". Please try again.`);
     }
   };
 
