@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, createContext, useContext } from 'react';
+import { createPortal } from 'react-dom';
 
 type DropdownContextType = {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+  popupRef: React.RefObject<HTMLDivElement | null>;
 };
 
 const DropdownContext = createContext<DropdownContextType | undefined>(undefined);
@@ -24,11 +27,16 @@ interface DropdownMenuProps {
 export function DropdownMenu({ children, className = 'ac-menu', style }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // The popup is portaled to <body>, so it lives outside `ref` in the DOM.
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideRoot = ref.current?.contains(target);
+      const insidePopup = popupRef.current?.contains(target);
+      if (!insideRoot && !insidePopup) {
         setOpen(false);
       }
     };
@@ -37,7 +45,7 @@ export function DropdownMenu({ children, className = 'ac-menu', style }: Dropdow
   }, [open]);
 
   return (
-    <DropdownContext.Provider value={{ open, setOpen }}>
+    <DropdownContext.Provider value={{ open, setOpen, rootRef: ref, popupRef }}>
       <div className={className} ref={ref} style={style}>
         {children}
       </div>
@@ -103,17 +111,46 @@ interface DropdownContentProps {
 }
 
 function DropdownContent({ children, className = 'ac-menu-pop', style }: DropdownContentProps) {
-  const { open } = useDropdown();
+  const { open, rootRef, popupRef } = useDropdown();
+
+  // Position the popup with `position: fixed` relative to the trigger's viewport
+  // rect. Rendering it in a portal means no scrollable ancestor (e.g. a horizontal
+  // scroller) can clip it. Flips above the trigger when there is no room below.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const popup = popupRef.current;
+      const root = rootRef.current;
+      if (!popup || !root) return;
+      const rect = root.getBoundingClientRect();
+      const height = popup.offsetHeight;
+      const below = rect.bottom + 4;
+      const above = rect.top - 4 - height;
+      const top = below + height > window.innerHeight && above >= 0 ? above : below;
+      popup.style.top = `${top}px`;
+      popup.style.right = `${window.innerWidth - rect.right}px`;
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open, rootRef, popupRef]);
+
   if (!open) return null;
-  return (
+  return createPortal(
     <div
+      ref={popupRef}
       className={className}
-      style={style}
+      style={{ ...style, position: 'fixed', top: 0, right: 0, zIndex: 1000 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 DropdownMenu.Content = DropdownContent;
